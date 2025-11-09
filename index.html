@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Task Buddy — Prototype (Single‑File)</title>
+<style>
+  :root { --bg:#0f172a; --card:#111827; --muted:#1f2937; --text:#e5e7eb; --accent:#22d3ee; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;}
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:linear-gradient(180deg, #0b1022, #0f172a); color:var(--text); }
+  header { padding:24px 16px; border-bottom:1px solid #111827; position:sticky; top:0; backdrop-filter:saturate(1.2) blur(4px); background:rgba(15,23,42,.7); z-index:10;}
+  .wrap { max-width:1100px; margin:0 auto; padding:16px;}
+  h1 { margin:.2rem 0 0; font-size: clamp(1.4rem, 2.5vw, 2rem); }
+  .sub { color:#9ca3af; font-size:.95rem }
+  .grid { display:grid; gap:16px; grid-template-columns: 1.2fr .8fr; }
+  @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
+  .card { background:linear-gradient(180deg, #0b1222, #0b1325); border:1px solid #1f2937; border-radius:16px; padding:16px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  label { font-size:.85rem; color:#9ca3af; display:block; margin:10px 0 6px;}
+  input, select, textarea { width:100%; padding:10px 12px; border-radius:12px; border:1px solid #253042; background:#0b1320; color:var(--text); outline:none; }
+  input[type="date"]{ padding:9px 12px; }
+  textarea{ resize:vertical; min-height:70px; }
+  .row { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .btn { border:1px solid #2a3a54; background:#0c1a2b; color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; transition:.2s; }
+  .btn:hover { transform: translateY(-1px); border-color:#38527a; }
+  .btn.primary { background:linear-gradient(90deg, #06b6d4, #22d3ee); color:#0b1022; border:none; font-weight:600; }
+  .btn.ghost { background:#0b1320; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; }
+  table { width:100%; border-collapse: collapse; margin-top:10px;}
+  th, td { text-align:left; padding:10px; border-bottom:1px solid #1f2937; }
+  th { color:#9ca3af; font-weight:600; }
+  .pill { padding:3px 8px; border-radius:999px; font-size:.75rem; display:inline-block; }
+  .s-good{ background:rgba(34,197,94,.15); color:#86efac }
+  .s-warn{ background:rgba(245,158,11,.15); color:#fbbf24 }
+  .s-bad{ background:rgba(239,68,68,.15); color:#fca5a5 }
+  .muted { color:#9ca3af }
+  .flex { display:flex; align-items:center; gap:8px; }
+  .spacer { height:8px; }
+  .footer { color:#6b7280; font-size:.8rem; text-align:center; padding:18px;}
+  .tag { font-size:.75rem; color:#93c5fd; background:#0b1c34; padding:2px 8px; border-radius:999px; border:1px solid #1f3b77}
+  .small { font-size:.85rem; color:#9ca3af }
+  .danger { color:#ef4444 }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Task Buddy — Prototype</h1>
+    <div class="sub">Local, single‑file demo. Tasks are saved to your browser only (localStorage). No internet required.</div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <section class="card">
+      <h2>Add / Edit Task</h2>
+      <div class="row">
+        <div>
+          <label>Title</label>
+          <input id="title" placeholder="e.g., Draft Sprint Plan" />
+        </div>
+        <div>
+          <label>Due date</label>
+          <input id="due" type="date" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Priority (1–5)</label>
+          <input id="priority" type="number" min="1" max="5" value="3" />
+        </div>
+        <div>
+          <label>Impact (1–5)</label>
+          <input id="impact" type="number" min="1" max="5" value="3" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Effort (hours)</label>
+          <input id="effort" type="number" min="0.25" step="0.25" value="2" />
+        </div>
+        <div>
+          <label>Estimate (hours)</label>
+          <input id="estimate" type="number" min="0.25" step="0.25" value="2" />
+        </div>
+      </div>
+      <label>Description</label>
+      <textarea id="desc" placeholder="Short description..."></textarea>
+      <div class="spacer"></div>
+      <div class="toolbar">
+        <button class="btn primary" onclick="saveTask()">Save Task</button>
+        <button class="btn ghost" onclick="resetForm()">Reset</button>
+        <span class="small">Selected: <span id="selectedId" class="tag">None</span></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Auto‑Plan My Day</h2>
+      <label>Available focus hours today</label>
+      <input id="focus" type="number" min="0.5" step="0.5" value="4" />
+      <div class="spacer"></div>
+      <div class="toolbar">
+        <button class="btn primary" onclick="planDay()">Plan</button>
+        <button class="btn" onclick="clearAll()">Clear All Tasks</button>
+        <button class="btn" onclick="exportCSV()">Export CSV</button>
+      </div>
+      <div id="plan" class="small muted" style="margin-top:10px;"></div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px;">
+    <div class="flex">
+      <h2 style="margin-right:8px;">Tasks</h2>
+      <span class="tag">Scored by (Impact×Priority×Urgency)/Effort</span>
+    </div>
+    <div class="toolbar" style="margin:10px 0;">
+      <label>Status Filter</label>
+      <select id="statusFilter" onchange="render()">
+        <option value="all">All</option>
+        <option value="open">Open</option>
+        <option value="done">Done</option>
+      </select>
+      <label>Sort</label>
+      <select id="sortBy" onchange="render()">
+        <option value="score">Score (desc)</option>
+        <option value="due">Due (soonest)</option>
+        <option value="impact">Impact (desc)</option>
+      </select>
+      <button class="btn" onclick="seed()">Seed Demo Tasks</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Title</th><th>Due</th><th class="muted">P</th><th class="muted">I</th><th class="muted">Eff</th><th>Score</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+  <div class="footer">© Task Buddy Prototype — runs fully offline in your browser.</div>
+</main>
+
+<script>
+  const $ = (id)=>document.getElementById(id);
+  const KEY="taskbuddy.tasks.v1";
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||[] }catch(e){ return [] }}
+  function save(list){ localStorage.setItem(KEY, JSON.stringify(list)); }
+
+  function urgency(due){
+    if(!due) return 1;
+    const now = new Date();
+    const d = new Date(due+"T23:59:59");
+    const hours = (d - now)/36e5;
+    // Urgency base: increases as due approaches; overdue heavily weighted
+    if (isNaN(hours)) return 1;
+    const u = hours >= 0 ? (1 + Math.log(1 + (24*14 - Math.min(24*14, hours))/24)) : (1 + Math.log(1 + Math.min(240, -hours)/12));
+    return Math.max(1, u);
+  }
+
+  function score(t){
+    const eff = Math.max(0.25, Number(t.effort)||1);
+    const u = urgency(t.due);
+    return (t.impact * t.priority * u) / eff;
+  }
+
+  function resetForm(){
+    $('title').value=''; $('due').value=''; $('priority').value=3; $('impact').value=3; $('effort').value=2; $('estimate').value=2; $('desc').value=''; $('selectedId').textContent='None'; selected=null;
+  }
+
+  let selected = null;
+
+  function saveTask(){
+    const t = {
+      id: selected || 't_'+Date.now(),
+      title:$('title').value.trim(),
+      due:$('due').value,
+      priority:Number($('priority').value||3),
+      impact:Number($('impact').value||3),
+      effort:Number($('effort').value||2),
+      estimate:Number($('estimate').value||2),
+      desc:$('desc').value.trim(),
+      status:'open'
+    };
+    if(!t.title){ alert('Please add a title'); return; }
+    const list = load();
+    const idx = list.findIndex(x=>x.id===t.id);
+    if(idx>=0) list[idx]=t; else list.push(t);
+    save(list);
+    resetForm();
+    render();
+  }
+
+  function edit(id){
+    const t = load().find(x=>x.id===id); if(!t) return;
+    $('title').value=t.title; $('due').value=t.due||''; $('priority').value=t.priority; $('impact').value=t.impact; $('effort').value=t.effort; $('estimate').value=t.estimate; $('desc').value=t.desc||''; $('selectedId').textContent=t.id; selected=t.id;
+    window.scrollTo({ top:0, behavior:'smooth'});
+  }
+
+  function removeTask(id){
+    if(!confirm('Delete this task?')) return;
+    const list = load().filter(x=>x.id!==id); save(list); render();
+  }
+
+  function toggleStatus(id){
+    const list = load(); const t = list.find(x=>x.id===id); if(!t) return;
+    t.status = t.status==='done' ? 'open' : 'done'; save(list); render();
+  }
+
+  function render(){
+    const list = load();
+    const filter = $('statusFilter').value;
+    let view = list.slice();
+    if(filter!=='all') view = view.filter(t=>t.status===filter);
+    const sortBy = $('sortBy').value;
+    view.forEach(t=> t._score = score(t));
+    if(sortBy==='score') view.sort((a,b)=>b._score-a._score);
+    if(sortBy==='due') view.sort((a,b)=> (a.due||'9999') < (b.due||'9999') ? -1 : 1);
+    if(sortBy==='impact') view.sort((a,b)=> b.impact - a.impact);
+
+    $('rows').innerHTML = view.map(t=>{
+      const s = t._score.toFixed(2);
+      const due = t.due || '—';
+      let pill = 's-good', status='Open';
+      if(t.status==='done'){ pill='s-good'; status='Done'; }
+      else {
+        const u = urgency(t.due);
+        if(u>3.0) pill='s-bad';
+        else if(u>1.8) pill='s-warn';
+        else pill='s-good';
+      }
+      return `<tr>
+        <td><div>${t.title}<div class="small muted">${t.desc||''}</div></div></td>
+        <td>${due}</td>
+        <td class="muted">${t.priority}</td>
+        <td class="muted">${t.impact}</td>
+        <td class="muted">${t.effort}</td>
+        <td><span class="pill ${pill}">${s}</span></td>
+        <td>${status}</td>
+        <td>
+          <div class="toolbar">
+            <button class="btn" onclick="edit('${t.id}')">Edit</button>
+            <button class="btn" onclick="toggleStatus('${t.id}')">${t.status==='done'?'Mark Open':'Mark Done'}</button>
+            <button class="btn danger" onclick="removeTask('${t.id}')">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function planDay(){
+    const hours = Number($('focus').value||0);
+    if(hours<=0){ $('plan').textContent='Enter your available focus hours.'; return; }
+    const tasks = load().filter(t=>t.status==='open').map(t=>({...t, _score:score(t)})).sort((a,b)=>b._score-a._score);
+    let remain = hours, picks = [];
+    for(const t of tasks){
+      if(remain<=0) break;
+      const block = Math.min(remain, Math.max(0.5, Math.min(t.estimate||t.effort||1, 4)));
+      picks.push({id:t.id, title:t.title, block, score:t._score});
+      remain -= block;
+    }
+    if(!picks.length){ $('plan').textContent='No open tasks to schedule.'; return; }
+    const lines = picks.map((p,i)=> `${i+1}. ${p.title} — ${p.block.toFixed(1)}h (score ${p.score.toFixed(2)})`);
+    const recs = [
+      'Timebox each block and take 5‑min breaks.',
+      'If blocked, write the smallest next action.',
+      'Finish overdue items before starting new ones.'
+    ];
+    $('plan').innerHTML = `<div><strong>Suggested Plan (${hours}h):</strong></div>
+      <div style="margin-top:6px; white-space:pre-line;">${lines.join('\n')}</div>
+      <div style="margin-top:8px;" class="small muted">${recs.join(' • ')}</div>`;
+  }
+
+  function clearAll(){
+    if(!confirm('This will delete ALL tasks stored in this browser. Continue?')) return;
+    save([]); render();
+  }
+
+  function exportCSV(){
+    const rows = load();
+    if(!rows.length){ alert('No tasks to export.'); return; }
+    const headers = ['Title','Due','Priority','Impact','Effort','Estimate','Status','Description','Score'];
+    const csv = [headers.join(',')].concat(rows.map(t=>[
+      `"${(t.title||'').replace(/"/g,'""')}"`,
+      t.due||'',
+      t.priority||'',
+      t.impact||'',
+      t.effort||'',
+      t.estimate||'',
+      t.status||'open',
+      `"${(t.desc||'').replace(/"/g,'""')}"`,
+      score(t).toFixed(2)
+    ].join(','))).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='task_buddy_tasks.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function seed(){
+    const demo=[
+      {title:'Draft Sprint Plan', due: new Date(Date.now()+3*86400000).toISOString().slice(0,10), priority:4, impact:5, effort:3, estimate:2, desc:'Outline scope and backlog.', status:'open'},
+      {title:'User Interviews', due: new Date(Date.now()+1*86400000).toISOString().slice(0,10), priority:5, impact:4, effort:2, estimate:1.5, desc:'Talk to 3 users.', status:'open'},
+      {title:'Refactor Auth Module', due: new Date(Date.now()+7*86400000).toISOString().slice(0,10), priority:3, impact:3, effort:5, estimate:3, desc:'Cleanup and tests.', status:'open'},
+      {title:'Prepare Demo Slides', due: new Date(Date.now()-1*86400000).toISOString().slice(0,10), priority:4, impact:4, effort:2, estimate:1, desc:'For stakeholder review.', status:'open'}
+    ];
+    const list = load(); demo.forEach((d,i)=> list.push({ id:'seed_'+i+'_'+Date.now(), ...d })); save(list); render();
+  }
+
+  render(); // initial
+</script>
+</body>
+</html>
